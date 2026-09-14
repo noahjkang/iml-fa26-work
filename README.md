@@ -1,0 +1,1 @@
+Noah Kang's work + documentation for Illinois Math Lab Fall 2026 Project: Symmetric Fixed Points of the Ricci Flow
