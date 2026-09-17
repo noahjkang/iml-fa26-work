@@ -35,7 +35,7 @@ def task1_trivial_scaling():
     y0_1 = initial_conditions(a0_1, f0, epsilon)
     sol_1 = solve_ivp(ricci_odes, r_span, y0_1, method='Radau', dense_output=True, rtol=1e-10, atol=1e-10)
     
-    c = 2.5
+    c = 2
     y0_2 = initial_conditions(c * a0_1, f0, epsilon)
     sol_2 = solve_ivp(ricci_odes, r_span, y0_2, method='Radau', dense_output=True, rtol=1e-10, atol=1e-10)
     
@@ -61,7 +61,7 @@ def task2_limit_mapping():
     r_span = (epsilon, 20.0)
     a0 = 1.0
     
-    f0_vals = np.linspace(-0.1, -5.0, 50)
+    f0_vals = np.linspace(5.0, -5.0, 50)
     
     a_prime_infty = []
     b_prime_infty = []
