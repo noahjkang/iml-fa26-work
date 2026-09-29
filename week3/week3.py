@@ -30,7 +30,16 @@ def get_limits_f1(a0, f0, r_max=20.0):
     f_prime_eps = f0 * eps
     
     y0 = [a_eps, a_prime_eps, b_eps, b_prime_eps, f_eps, f_prime_eps]
-    sol = solve_ivp(ricci_soliton, (eps, r_max), y0, method='RK45')
+    
+    def event_a(r, y): return y[0] - 1e-5
+    event_a.terminal = True
+    def event_b(r, y): return y[2] - 1e-5
+    event_b.terminal = True
+    
+    sol = solve_ivp(ricci_soliton, (eps, r_max), y0, method='RK45', events=[event_a, event_b])
+    
+    if sol.status != 0 or sol.t[-1] < r_max - 0.1:
+        return np.nan, np.nan
     return sol.y[1][-1], sol.y[3][-1]
 
 def get_limits_f2(b0, f0, r_max=20.0):
@@ -47,7 +56,16 @@ def get_limits_f2(b0, f0, r_max=20.0):
     f_prime_eps = f0 * eps
     
     y0 = [a_eps, a_prime_eps, b_eps, b_prime_eps, f_eps, f_prime_eps]
-    sol = solve_ivp(ricci_soliton, (eps, r_max), y0, method='RK45')
+    
+    def event_a(r, y): return y[0] - 1e-5
+    event_a.terminal = True
+    def event_b(r, y): return y[2] - 1e-5
+    event_b.terminal = True
+    
+    sol = solve_ivp(ricci_soliton, (eps, r_max), y0, method='RK45', events=[event_a, event_b])
+    
+    if sol.status != 0 or sol.t[-1] < r_max - 0.1:
+        return np.nan, np.nan
     return sol.y[1][-1], sol.y[3][-1]
 
 # --- Goal 1: 3D Manifold Plot for f2 ---
