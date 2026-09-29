@@ -69,9 +69,9 @@ def get_limits_f2(b0, f0, r_max=20.0):
     return sol.y[1][-1], sol.y[3][-1]
 
 # --- Goal 1: 3D Manifold Plot for f2 ---
-# Increased resolution slightly (15 -> 25) for a smoother surface
-b0_vals = np.linspace(0.5, 3.0, 25)
-f0_vals = np.linspace(-0.5, -4.0, 25)
+# Increased resolution and expanded bounds for a broader view of the manifold
+b0_vals = np.linspace(0.1, 10.0, 35)
+f0_vals = np.linspace(-0.1, -10.0, 35)
 B0, F0 = np.meshgrid(b0_vals, f0_vals)
 
 A_inf_f2 = np.zeros_like(B0)
@@ -82,12 +82,14 @@ for i in range(B0.shape[0]):
     for j in range(B0.shape[1]):
         A_inf_f2[i,j], B_inf_f2[i,j] = get_limits_f2(B0[i,j], F0[i,j])
 
-fig = plt.figure(figsize=(18, 6))
+fig1 = plt.figure(figsize=(10, 8))
 
-ax1 = fig.add_subplot(131, projection='3d')
+ax1 = fig1.add_subplot(111, projection='3d')
 
 # Map the F0 parameter to colors for the surface
-norm = plt.Normalize(F0.min(), F0.max())
+# Ignore nan values for normalization
+valid_mask = ~np.isnan(F0) & ~np.isnan(A_inf_f2) & ~np.isnan(B_inf_f2)
+norm = plt.Normalize(F0[valid_mask].min(), F0[valid_mask].max())
 colors = cm.viridis(norm(F0))
 
 # Plot the continuous manifold
@@ -96,12 +98,13 @@ surf = ax1.plot_surface(A_inf_f2, B_inf_f2, B0, facecolors=colors, shade=True, e
 ax1.set_xlabel("a'_infty (S1 Limit)")
 ax1.set_ylabel("b'_infty (S2 Limit)")
 ax1.set_zlabel("b0 (Initial S2 Size)")
+ax1.view_init(elev=20, azim=200)
 ax1.set_title("Goal 1: f2 Map Asymptotic Manifold")
 
 # Add the colorbar using a ScalarMappable
 sm = cm.ScalarMappable(cmap='viridis', norm=norm)
 sm.set_array([])
-fig.colorbar(sm, ax=ax1, label="f''(0) value")
+fig1.colorbar(sm, ax=ax1, label="f''(0) value")
 
 # --- Goal 2: Graphing the a'_infty / b'_infty Ratio ---
 f0_line = np.linspace(-0.5, -5.0, 30)
@@ -115,7 +118,9 @@ for f in f0_line:
     ratio_f1.append(a_f1 / b_f1)
     ratio_f2.append(a_f2 / b_f2)
 
-ax2 = fig.add_subplot(132)
+fig2 = plt.figure(figsize=(12, 6))
+
+ax2 = fig2.add_subplot(121)
 ax2.plot(f0_line, ratio_f1, label="Map f1 (S1 x R3, a0=1)", color='blue', lw=2)
 ax2.set_xlabel("f''(0) (Soliton Potential Initial Condition)")
 ax2.set_ylabel("Ratio (a'_infty / b'_infty)")
@@ -123,7 +128,7 @@ ax2.set_title("Goal 2: Map f1 Limit Ratio")
 ax2.legend()
 ax2.grid(True)
 
-ax4 = fig.add_subplot(133)
+ax4 = fig2.add_subplot(122)
 ax4.plot(f0_line, ratio_f2, label="Map f2 (S2 x R2, b0=1)", color='orange', lw=2)
 ax4.set_xlabel("f''(0) (Soliton Potential Initial Condition)")
 ax4.set_ylabel("Ratio (a'_infty / b'_infty)")
@@ -132,8 +137,8 @@ ax4.legend()
 ax4.grid(True)
 
 # --- Goal 3: 2D Scatter Plot to Find the Missing Region of f2 ---
-fig2 = plt.figure(figsize=(8, 6))
-ax3 = fig2.add_subplot(111)
+fig3 = plt.figure(figsize=(8, 6))
+ax3 = fig3.add_subplot(111)
 
 # Flatten the arrays to plot them as a scatter
 a_flat = A_inf_f2.flatten()
@@ -148,11 +153,9 @@ ax3.set_xlabel("a'_infty")
 ax3.set_ylabel("b'_infty")
 ax3.set_title("Image of f2 in the Limit Plane")
 ax3.legend()
-fig2.colorbar(sc, label="f''(0) value")
+fig3.colorbar(sc, label="f''(0) value")
 
-plt.tight_layout()
-plt.savefig('week3_plots.png')
-fig2.savefig('week3_image_f2.png')
+
 
 # Display the interactive plot windows
 plt.show()
