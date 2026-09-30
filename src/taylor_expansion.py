@@ -27,11 +27,16 @@ def compute_taylor_series(order=6):
     b_double_prime = sp.diff(b_prime, r)
     f_prime = sp.diff(f_series, r)
     f_double_prime = sp.diff(f_prime, r)
-    
+
+
+    # $$a b f'' - b a'' - 2a b'' + a b = 0$$
     eq1 = a_series * b_series * f_double_prime - b_series * a_double_prime - 2 * a_series * b_double_prime + a_series * b_series
+    # $$a'' b + 2a' b' - a' b f' - a b = 0$$
     eq2 = b_series * a_double_prime + 2 * a_prime * b_prime - b_series * a_prime * f_prime - a_series * b_series
+    # $$a b b'' - a(1 - (b')^2) + b a' b' - a b b' f' - a b^2 = 0$$
     eq3 = a_series * b_series * b_double_prime - a_series * (1 - b_prime**2) + b_series * a_prime * b_prime - a_series * b_series * b_prime * f_prime - a_series * b_series**2
-    
+
+    # express as power series
     eq1_exp = sp.series(eq1, r, 0, order+2).removeO()
     eq2_exp = sp.series(eq2, r, 0, order+2).removeO()
     eq3_exp = sp.series(eq3, r, 0, order+2).removeO()
