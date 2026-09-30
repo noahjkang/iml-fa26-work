@@ -4,19 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib import cm  # Required for surface color mapping
 from mpl_toolkits.mplot3d import Axes3D
 
-# --- Core Soliton ODE System ---
-def ricci_soliton(r, y):
-    a, a_prime, b, b_prime, f, f_prime = y
-    
-    # Floor values to prevent division by zero near the origin
-    a = max(a, 1e-10)
-    b = max(b, 1e-10)
-
-    a_double_prime = -2 * (a_prime * b_prime) / b + a_prime * f_prime + a
-    b_double_prime = (1 - b_prime**2) / b - (a_prime * b_prime) / a + b_prime * f_prime + b
-    f_double_prime = a_double_prime / a + 2 * (b_double_prime / b) - 1
-    
-    return [a_prime, a_double_prime, b_prime, b_double_prime, f_prime, f_double_prime]
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.ricci_odes import ricci_soliton
 
 # --- Simulators for Asymptotic Limits ---
 def get_limits_f1(a0, f0, r_max=20.0):
