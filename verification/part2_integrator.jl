@@ -86,13 +86,14 @@ function run_rigorous_proof()
     
     println("\n--- Proof Complete ---")
     println("Certified Box at r = $R:")
-    rect = overapproximate(final_set, Hyperrectangle)
+    rs_rect = overapproximate(final_set, Hyperrectangle)
+    rect = set(rs_rect)
     println("a  ∈ [", low(rect)[1], ", ", high(rect)[1], "]")
-    println("a ∈ [", low(rect)[2], ", ", high(rect)[2], "]")
+    println("a' ∈ [", low(rect)[2], ", ", high(rect)[2], "]")
     println("b  ∈ [", low(rect)[3], ", ", high(rect)[3], "]")
-    println("b ∈ [", low(rect)[4], ", ", high(rect)[4], "]")
+    println("b' ∈ [", low(rect)[4], ", ", high(rect)[4], "]")
     println("f  ∈ [", low(rect)[5], ", ", high(rect)[5], "]")
-    println("f ∈ [", low(rect)[6], ", ", high(rect)[6], "]")
+    println("f' ∈ [", low(rect)[6], ", ", high(rect)[6], "]")
     
     return final_set
 end
