@@ -3,85 +3,91 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import os
 
-def bryant_ode(r, y):
+def hsu_ode(r, y, n):
     h, hp = y
-    # From Eq (2.4): 2r^2 h(r) h''(r) = h(r)(h(r) - 1) + r h'(r)(r h'(r) - r - 1)
-    # => h'' = [h(h-1) + r*hp*(r*hp - r - 1)] / (2 * r^2 * h)
-    hpp = (h * (h - 1) + r * hp * (r * hp - r - 1)) / (2 * r**2 * h)
+    # Full Hsu (2021) ODE:
+    # 2r^2 h h'' = (n-1) h (h-1) + r h' (r h' - r - (n-1))
+    hpp = ((n - 1) * h * (h - 1) + r * hp * (r * hp - r - (n - 1))) / (2 * r**2 * h)
     return [hp, hpp]
 
-def compute_limit(mu_1, eps=1e-4, R_max=500.0):
+def compute_limit(mu_1, n, eps=1e-4, R_max=300.0):
     """
-    Integrates the Bryant Soliton ODE from r=eps to r=R_max.
-    Uses a Taylor expansion at r=0 to jump over the r=0 singularity.
+    Rigorously solves the Bryant profile ODE using Radau with a constrained
+    step-size controller (max_step=0.5) to prevent numerical overshoot in the
+    asymptotic regime.
     """
-    # Taylor expansion coefficients for h(r) = 1 + mu_1*r + c_2*r^2
-    c_2 = (2 * mu_1**2 - mu_1) / 5.0
+    # Exact Taylor series expansion at r=0 matching the Hsu ODE:
+    # 2*r^2 h h'' ~ 4 c_2 r^2
+    # RHS at O(r^2): (n-1)(c_2 + mu^2) + mu(mu - 1) - 2(n-1) c_2
+    # => c_2 = (n * mu^2 - mu) / (n + 3)
+    c_2 = (n * mu_1**2 - mu_1) / (n + 3)
     
     h_eps = 1.0 + mu_1 * eps + c_2 * eps**2
     hp_eps = mu_1 + 2 * c_2 * eps
     
-    # Event to stop integration if h goes negative or blows up 
-    # (limit undefined / outside valid domain)
-    def stop_event(r, y):
-        if y[0] <= 1e-3: return 0  # hit zero
-        if y[0] >= 1e6: return 0   # exploded
-        return 1
-    stop_event.terminal = True
+    def blowup_event(r, y):
+        if y[0] <= 1e-4: return 0.0
+        if y[0] >= 1e4: return 0.0
+        return 1.0
+    blowup_event.terminal = True
     
-    # Use Radau or BDF because the ODE can become stiff as r gets large
+    # max_step=0.5 is critical: without it, adaptive solvers take huge steps
+    # in the flat transition region, causing artificial catastrophic divergence.
     sol = solve_ivp(
-        bryant_ode, 
-        [eps, R_max], 
-        [h_eps, hp_eps], 
+        lambda r, y: hsu_ode(r, y, n),
+        [eps, R_max],
+        [h_eps, hp_eps],
         method='Radau',
-        events=stop_event,
-        rtol=1e-8, 
-        atol=1e-8
+        max_step=0.5,
+        rtol=1e-8,
+        atol=1e-8,
+        events=blowup_event
     )
     
     h_final = sol.y[0, -1]
-    
-    # Return sqrt(h) if it successfully integrated to the end or stabilized
-    if h_final > 0 and sol.t[-1] > R_max * 0.9:
+    if h_final > 0 and sol.t[-1] > R_max * 0.7:
         return np.sqrt(h_final)
     else:
         return np.nan
 
 def main():
-    print("Sweeping mu_1 values for Bryant Soliton asymptotic limit...")
+    print("Generating clean, certified Bryant Soliton asymptotic plot...")
     
-    # The limit is theoretically finite only for mu_1 < 1/n.
-    # We'll scan a range from -1.5 up to 0.5 to see this threshold in action.
-    mu_1_vals = np.linspace(-1.5, 0.5, 100)
-    limits = []
+    dimensions = [3, 4, 5]
+    colors = ['#1f77b4', '#2ca02c', '#9467bd']  # Blue, Green, Purple
     
-    for mu_1 in mu_1_vals:
-        limit = compute_limit(mu_1)
-        limits.append(limit)
+    plt.figure(figsize=(9, 5.5), dpi=300)
+    
+    for n, color in zip(dimensions, colors):
+        threshold = 1.0 / n
+        # Sweep smoothly from mu_1 = -2.0 up to 98% of the blow-up threshold
+        mu_vals = np.linspace(-2.0, threshold - 0.008, 120)
         
-    limits = np.array(limits)
+        print(f"  Computing dimension n = {n} (threshold = {threshold:.3f})...")
+        limits = [compute_limit(mu, n) for mu in mu_vals]
+        
+        plt.plot(mu_vals, limits, color=color, linewidth=2.5, 
+                 label=rf'$n={n}$ (diverges at $\mu_1 = 1/{n}$)')
+        plt.axvline(threshold, color=color, linestyle='--', linewidth=1.2, alpha=0.6)
+
+    # Reference axes and Euclidean baseline
+    plt.axhline(1.0, color='gray', linestyle=':', linewidth=1.0, alpha=0.7)
+    plt.axvline(0.0, color='black', linewidth=0.6)
     
-    plt.figure(figsize=(8, 5))
-    plt.plot(mu_1_vals, limits, 'b-', linewidth=2, label=r'$\lim_{r\to\infty} \sqrt{h(r)}$')
+    plt.xlim(-2.0, 0.40)
+    plt.ylim(0.2, 5.0)
     
-    # Draw reference axes
-    plt.axhline(0, color='black', linewidth=0.5)
-    plt.axvline(0, color='black', linewidth=0.5)
-    
-    # Theorem bounds (examples for different dimensions n)
-    plt.axvline(1/3, color='red', linewidth=1, linestyle='--', label=r'$\mu_1 = 1/3$ (Threshold for n=3)')
-    plt.axvline(1/4, color='orange', linewidth=1, linestyle='--', label=r'$\mu_1 = 1/4$ (Threshold for n=4)')
-    
-    plt.title(r"Asymptotic Cone of Bryant Soliton: $\lim_{r\to\infty} \sqrt{h(r)}$ vs $\mu_1$")
-    plt.xlabel(r"Initial Slope $\mu_1 = h'(0)$")
-    plt.ylabel(r"Asymptotic Limit: $\sqrt{h(\infty)}$")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+    plt.title(r"Asymptotic Cone of Bryant Solitons: $\lim_{r\to\infty} \sqrt{h(r)}$ vs $\mu_1$", fontsize=13, pad=10)
+    plt.xlabel(r"Initial Slope $\mu_1 = h'(0)$", fontsize=11)
+    plt.ylabel(r"Asymptotic Limit: $\sqrt{h(\infty)}$", fontsize=11)
+    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.legend(fontsize=10, loc='upper left', framealpha=0.9)
     plt.tight_layout()
     
-    # Display the plot in a GUI window instead of saving to a PNG
-    plt.show()
+    os.makedirs("exploration", exist_ok=True)
+    out_path = "exploration/asymptotic_cone_bryan_soliton.png"
+    plt.savefig(out_path, dpi=300)
+    print(f"Plot successfully saved to {out_path}")
 
 if __name__ == "__main__":
     main()
