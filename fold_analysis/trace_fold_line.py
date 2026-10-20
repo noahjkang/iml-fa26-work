@@ -8,7 +8,14 @@ import os
 import sys
 
 # Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure project root is in sys.path
+_cur = os.path.abspath(__file__)
+while _cur != os.path.dirname(_cur):
+    if os.path.exists(os.path.join(_cur, 'src', 'ricci_odes.py')):
+        if _cur not in sys.path:
+            sys.path.insert(0, _cur)
+        break
+    _cur = os.path.dirname(_cur)
 from src.ricci_odes import ricci_soliton
 
 def get_limits_f2(b0, f0, r_max=20.0):

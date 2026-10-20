@@ -1,6 +1,6 @@
 using ReachabilityAnalysis
 using IntervalArithmetic
-include("../src/initial_box.jl")
+include("../../src/initial_box.jl")
 
 # Load part2 model
 function get_final_tm()

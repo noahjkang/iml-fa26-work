@@ -12,7 +12,14 @@ We bound the remainder R_10(eps) using the certified K and C.
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure project root is in sys.path
+_cur = os.path.abspath(__file__)
+while _cur != os.path.dirname(_cur):
+    if os.path.exists(os.path.join(_cur, 'src', 'ricci_odes.py')):
+        if _cur not in sys.path:
+            sys.path.insert(0, _cur)
+        break
+    _cur = os.path.dirname(_cur)
 from src.taylor_expansion import compute_taylor_series
 
 def verify_and_export_majorant(a0_val=1.0, f2_val=-1.0, order=50):

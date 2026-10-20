@@ -84,8 +84,7 @@ def main():
     plt.legend(fontsize=10, loc='upper left', framealpha=0.9)
     plt.tight_layout()
     
-    os.makedirs("exploration", exist_ok=True)
-    out_path = "exploration/asymptotic_cone_bryan_soliton.png"
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asymptotic_cone_bryan_soliton.png")
     plt.savefig(out_path, dpi=300)
     print(f"Plot successfully saved to {out_path}")
 

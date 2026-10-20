@@ -12,7 +12,14 @@ from scipy.integrate import solve_ivp
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure project root is in sys.path
+_cur = os.path.abspath(__file__)
+while _cur != os.path.dirname(_cur):
+    if os.path.exists(os.path.join(_cur, 'src', 'ricci_odes.py')):
+        if _cur not in sys.path:
+            sys.path.insert(0, _cur)
+        break
+    _cur = os.path.dirname(_cur)
 from src.ricci_odes import ricci_soliton
 
 def analyze_trapping_region(a0=1.0, f2=-1.0, R=50.0):

@@ -3,7 +3,7 @@ using Symbolics
 using IntervalArithmetic
 using TaylorSeries
 
-include("../src/initial_box.jl")
+include("../../src/initial_box.jl")
 
 function ricci_soliton!(dx, x, p, t)
     # The independent variable here is 't', which represents our radius 'r'.
