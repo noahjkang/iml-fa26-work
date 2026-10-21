@@ -1,0 +1,28 @@
+{
+    "description": "Two expanding gradient Ricci solitons on S2 x R2 sharing identical asymptotic cones",
+    "cone_target": {
+        "a_prime_infinity": 0.39285084894428635,
+        "b_prime_infinity": 1.1578928819728838
+    },
+    "soliton_1": {
+        "topology": "S2 x R2",
+        "branch": "lower (small S2 core)",
+        "b0": 0.3,
+        "f0": -1.0,
+        "a_prime_inf": 0.39285084894428635,
+        "b_prime_inf": 1.1578928819728838
+    },
+    "soliton_2": {
+        "topology": "S2 x R2",
+        "branch": "upper (large S2 core)",
+        "b0": 1.7370636818749905,
+        "f0": -2.096571985814151,
+        "a_prime_inf": 0.3928508433887836,
+        "b_prime_inf": 1.1578928706859661
+    },
+    "difference": {
+        "delta_a_prime": 5.555502724519101e-09,
+        "delta_b_prime": 1.12869176227548e-08
+    },
+    "integration_r_max": 30.0
+}
