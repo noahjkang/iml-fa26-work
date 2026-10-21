@@ -58,12 +58,12 @@ iml-fa26-work/
 └── relative_entropy/                  # Goal 4: Deruelle–Schulze Relative Entropy & Trace at Infinity
     ├── step1_find_matching_solitons.py# Step 1: 2D nonlinear root-finding matching identical asymptotic cones
     ├── step2_integrate_trajectories.py# Step 2: High-precision Radau IIA trajectory integration out to r_max=30
-    ├── step3_coordinate_alignment.py  # Step 3: Backward ODE solving for soliton vector field alignment V1 = V2
+    ├── step3_coordinate_alignment.py  # Step 3: Hybrid gauge alignment (closed-form shift + backward ODE for V1 = V2)
     ├── step4_difference_tensor.py     # Step 4: Gauged metric difference tensor h = g1 - g2 & cone normalization
     ├── step5_trace_at_infinity.py     # Step 5: Deruelle–Schulze Theorem 1.1 weighted trace & L^2(S) link norms
     ├── matching_solitons.json         # Parameter specifications for matched soliton pair
     ├── trajectories.npz               # Dense potential and metric trajectory archives
-    ├── aligned_coordinates.npz        # Gauged coordinate reparametrization psi(r) data
+    ├── aligned_coordinates.npz        # Gauged coordinate reparametrization psi(r) & asymptotic benchmark data
     ├── gauged_difference.npz          # Raw and cone-normalized metric difference components
-    └── trace_at_infinity.npz          # Final quantitative traces and link L^2 norms at infinity
+    ├── trace_at_infinity.npz          # Final quantitative traces and link L^2 norms at infinity
 ```
