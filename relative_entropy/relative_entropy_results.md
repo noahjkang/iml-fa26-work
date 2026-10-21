@@ -105,7 +105,7 @@ The relative trace at infinity was evaluated through an end-to-end, reproducible
   $$\text{Vol}(S^1 \times S^2, g_S) = 8\pi^2 a'_\infty (b'_\infty)^2 = 41.586675, \qquad \sqrt{\text{Vol}} = 6.448773$$
 
 #### Quantitative Checkpoint Table
-| $r$ | $|h|_{g_C}$ | $\|h\|_{L^2(S)}$ | $\|r^2 h\|_{L^2(S)}$ | $\|r^4 h\|_{L^2(S)}$ | $\|w_{DS} h\|_{L^2(S)}$ | $\ln \|w_{DS} h\|_{L^2(S)}$ |
+| $r$ | $\lvert h \rvert_{g_C}$ | $\lVert h \rVert_{L^2(S)}$ | $\lVert r^2 h \rVert_{L^2(S)}$ | $\lVert r^4 h \rVert_{L^2(S)}$ | $\lVert w_{DS} h \rVert_{L^2(S)}$ | $\ln \lVert w_{DS} h \rVert_{L^2(S)}$ |
 |:---:|:-----------:|:----------------:|:--------------------:|:--------------------:|:-----------------------:|:---------------------------:|
 | 1.0 | $7.7960 \times 10^{-1}$ | $5.0274$ | $5.0274$ | $5.0274$ | $6.4554$ | $+1.865$ |
 | 1.5 | $1.0168 \times 10^{-1}$ | $0.6557$ | $1.4757$ | $3.3211$ | $5.8296$ | $+1.763$ |

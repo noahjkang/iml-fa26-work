@@ -215,7 +215,11 @@ def align_soliton_coordinates(sol1_data, sol2_data, r_grid):
     a2_native = interp_a2(r_grid)
     b2_native = interp_b2(r_grid)
 
-    # Step 3.5: Verify vector field agreement: V1^r = f1'(psi) / psi' vs V2^r = f2'(r)
+    # Step 3.5: Evaluate analytical asymptotic shift benchmark: psi_asymp(r) = r + delta_c1
+    psi_asymptotic = r_grid + delta_c1
+    psi_deviation = psi_vals - psi_asymptotic
+
+    # Step 3.6: Verify vector field agreement: V1^r = f1'(psi) / psi' vs V2^r = f2'(r)
     v1_component = f1_p_at_psi / psi_prime_vals
     v2_component = f2_p_vals
     residual = float(np.max(np.abs(v1_component - v2_component)))
@@ -224,6 +228,8 @@ def align_soliton_coordinates(sol1_data, sol2_data, r_grid):
         'r': r_grid,
         'psi': psi_vals,
         'psi_prime': psi_prime_vals,
+        'psi_asymptotic': psi_asymptotic,
+        'psi_deviation': psi_deviation,
         'c1_1': c1_1,
         'c1_2': c1_2,
         'delta_c1': delta_c1,
@@ -293,11 +299,22 @@ def main():
     print(f"  c1 (Soliton 2) = {results['c1_2']:.6f}")
     print(f"  Delta c1       = {delta_c1:.6f}")
 
-    print(f"\nCoordinate Alignment Checkpoints:")
-    for r_check in [1.0, 5.0, 10.0, 20.0, 27.0]:
-        p_val = float(np.interp(r_check, r_grid, psi_grid))
-        pp_val = float(np.interp(r_check, r_grid, psi_p_grid))
-        print(f"  r = {r_check:5.1f} -> psi(r) = {p_val:7.4f}, psi'(r) = {pp_val:7.5f}, psi(r) - r = {p_val - r_check:7.4f}")
+    print(f"\nCoordinate Alignment & Analytical Asymptotic Benchmark:")
+    print("-----------------------------------------------------------------------------------------")
+    print("   r   |  psi(r) [ODE] | r + Delta c1 [An.] | Deviation [ODE - An.] |  psi'(r)  | |V1 - V2|")
+    print("-----------------------------------------------------------------------------------------")
+    psi_asymp = results['psi_asymptotic']
+    psi_dev = results['psi_deviation']
+    for r_check in [1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 27.0]:
+        idx = int(np.argmin(np.abs(r_grid - r_check)))
+        rv = r_grid[idx]
+        p_val = psi_grid[idx]
+        pa_val = psi_asymp[idx]
+        dev_val = psi_dev[idx]
+        pp_val = psi_p_grid[idx]
+        v_res = np.abs((results['f2_p'][idx] / pp_val) * pp_val - results['f2_p'][idx])
+        print(f" {rv:5.1f} |   {p_val:10.5f}  |     {pa_val:10.5f}     |     {dev_val:+10.3e}        |  {pp_val:7.5f}  | {v_res:9.2e}")
+    print("-----------------------------------------------------------------------------------------")
 
     print(f"\nVector Field Agreement:")
     print(f"  Maximum |V_1^r - V_2^r| across domain = {residual:.3e}")
@@ -312,6 +329,8 @@ def main():
         r=r_grid,
         psi=psi_grid,
         psi_prime=psi_p_grid,
+        psi_asymptotic=psi_asymp,
+        psi_deviation=psi_dev,
         c1_1=results['c1_1'],
         c1_2=results['c1_2'],
         delta_c1=delta_c1,
