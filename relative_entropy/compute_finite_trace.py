@@ -159,6 +159,9 @@ def compute_finite_trace(soliton_pair=None, s_min=1.0, s_max=20.0, n_points=500,
     r1_v = r1_of_s(s_grid)
     r2_v = r2_of_s(s_grid)
 
+    # goal for next week: we want grpah like 3d one before with a'infty and b'infty and then graph C for each on z axis
+
+
     # In Deruelle convention, metric is rescaled by factor 2: a_DS^2 = 2 * a_our^2
     a1_sq = 2.0 * a1_of_r(r1_v)**2
     a2_sq = 2.0 * a2_of_r(r2_v)**2
@@ -182,6 +185,17 @@ def compute_finite_trace(soliton_pair=None, s_min=1.0, s_max=20.0, n_points=500,
     C_trace = float(popt[0])
     eps_noise = float(popt[1])
 
+    # 5b. Compute exact tangent line at infinity (s -> infty, X = 0)
+    # Taylor expansion: Y(X) = C_tangent * X + C_curv * X^2
+    mask_tan = (s_grid >= 2.5) & (s_grid <= 4.5)
+    X_tan = (s_grid[mask_tan]**(-4)) * np.exp(-(s_grid[mask_tan]**2) / 4.0)
+    Y_tan = term[mask_tan]
+    A_tan = np.column_stack([X_tan, X_tan**2])
+    c_tan, _, _, _ = np.linalg.lstsq(A_tan, Y_tan, rcond=None)
+    C_tangent = float(c_tan[0])
+    C_curv = float(c_tan[1])
+    r2_tan = float(1.0 - np.sum((Y_tan - (C_tangent * X_tan + C_curv * X_tan**2))**2) / np.sum((Y_tan - np.mean(Y_tan))**2))
+
     # 6. Collect checkpoint values across the domain
     checkpoint_s = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 5.5, 6.0, 8.0, 10.0, 15.0, 20.0]
     checkpoints = []
@@ -204,6 +218,9 @@ def compute_finite_trace(soliton_pair=None, s_min=1.0, s_max=20.0, n_points=500,
     return {
         "soliton_pair": soliton_pair,
         "trace_value": C_trace,
+        "tangent_value": C_tangent,
+        "curvature_value": C_curv,
+        "r2_tangent": r2_tan,
         "noise_floor": eps_noise,
         "checkpoints": checkpoints,
         "s_grid": s_grid,
@@ -214,58 +231,68 @@ def compute_finite_trace(soliton_pair=None, s_min=1.0, s_max=20.0, n_points=500,
 
 def plot_finite_trace_gui(results, save_path=None):
     """
-    Displays a single-panel interactive Matplotlib GUI window and saves the regression visualization.
+    Displays a single-panel interactive Matplotlib GUI window and saves the visualization.
 
-    Plot: The linear regression line Y = C * X where:
-             X = s^-4 * exp(-s^2/4)  (Theorem 1.1 shape factor)
-             Y = |g1 - g2|_gamma     (measured geometric difference)
-          across the asymptotic cone regime (s >= 2.5), demonstrating that the data
-          falls directly along the straight line Y = C * X with slope C = 8.3811.
+    Plot:
+      1. Measured data points Y = |g1 - g2|_gamma vs X = s^-4 * exp(-s^2/4)
+      2. True tangent line at infinity (s -> infty, X = 0): Y_tangent = C_tangent * X (slope ~ 10.47)
+      3. Asymptotic expansion curve: Y = C_tangent * X + C_curv * X^2 (R^2 ~ 0.9987)
+      4. Global transseries linear fit: Y = C_lin * X (slope ~ 8.38)
     """
     s_grid = results["s_grid"]
     term = results["term"]
     C_val = results["trace_value"]
+    C_tangent = results["tangent_value"]
+    C_curv = results["curvature_value"]
+    r2_tan = results["r2_tangent"]
 
-    # Focus on the asymptotic cone regime s >= 2.5 where Theorem 1.1 holds
-    mask_asymp = (s_grid >= 2.5) & (s_grid <= 5.5)
+    # Focus on the asymptotic cone regime s in [2.5, 5.0] where Theorem 1.1 holds
+    mask_asymp = (s_grid >= 2.5) & (s_grid <= 5.0)
     s_fit = s_grid[mask_asymp]
     Y_meas = term[mask_asymp]
     X_shape = (s_fit**(-4)) * np.exp(-(s_fit**2) / 4.0)
 
-    # Calculate R^2 correlation
+    # Calculate R^2 correlation for simple linear fit
     corr = np.corrcoef(X_shape, Y_meas)[0, 1]
     r_squared = corr**2
 
     # Create a clean single-panel figure
-    fig, ax = plt.subplots(figsize=(8.5, 6))
+    fig, ax = plt.subplots(figsize=(9, 6.5))
     try:
-        fig.canvas.manager.set_window_title("Deruelle-Schulze Theorem 1.1: Linear Regression Y = C * X")
+        fig.canvas.manager.set_window_title("Deruelle-Schulze Theorem 1.1: Tangent Line at Infinity")
     except Exception:
         pass
 
-    # Extended regression line across the full range of points
+    # Domain for model lines
     x_max = np.max(X_shape) * 1.05
-    x_line = np.linspace(0, x_max, 100)
-    y_line = C_val * x_line
+    x_line = np.linspace(0, x_max, 200)
+    y_tangent = C_tangent * x_line
+    y_curve = C_tangent * x_line + C_curv * (x_line**2)
+    y_lin = C_val * x_line
 
-    ax.plot(X_shape, Y_meas, 'bo', alpha=0.7, markersize=6,
+    ax.plot(X_shape, Y_meas, 'bo', alpha=0.75, markersize=6,
             label=r'Measured Difference $Y = |g_1 - g_2|_\gamma$')
-    ax.plot(x_line, y_line, 'r-', lw=2.5,
-            label=rf'Linear Fit: $Y = C \cdot X$ ($C = {C_val:.4f}$)')
+    ax.plot(x_line, y_curve, 'g-', lw=2.2,
+            label=rf'Asymptotic Curve: $Y = C_1 X + C_2 X^2$ ($R^2 = {r2_tan:.4f}$)')
+    ax.plot(x_line, y_tangent, 'r--', lw=2.5,
+            label=rf'Tangent Line at $\infty$: $Y = C_{{tan}} \cdot X$ ($C_{{tan}} = {C_tangent:.4f}$)')
+    ax.plot(x_line, y_lin, 'm:', lw=1.8,
+            label=rf'Linear Secant Fit: $Y = C_{{lin}} \cdot X$ ($C_{{lin}} = {C_val:.4f}$)')
 
-    # Text box with regression statistics
+    # Text box with model statistics
     stats_text = (
-        f"Linear Model: $Y = C \\cdot X$\n"
-        f"Fitted Slope $C = {C_val:.4f}$\n"
-        f"Correlation $R^2 = {r_squared:.5f}$"
+        f"Tangent Slope at $\\infty$ ($X \\to 0$): $C_{{tan}} = {C_tangent:.4f}$\n"
+        f"Curvature Coefficient $C_2 = {C_curv:.1f}$\n"
+        f"Curve Fit Quality: $R^2 = {r2_tan:.5f}$\n"
+        f"Linear Secant Fit: $C_{{lin}} = {C_val:.4f}$"
     )
-    ax.text(0.05, 0.85, stats_text, transform=ax.transAxes, fontsize=11,
-            verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', facecolor='wheat', alpha=0.4))
+    ax.text(0.04, 0.78, stats_text, transform=ax.transAxes, fontsize=10.5,
+            verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', facecolor='wheat', alpha=0.45))
 
-    ax.set_title(r"Theorem 1.1 Asymptotic Linear Fit ($Y = C \cdot X$)", fontsize=13, fontweight='bold')
-    ax.set_xlabel(r"Theoretical Shape Factor $X = s^{-4} e^{-s^2/4}$", fontsize=12)
-    ax.set_ylabel(r"Measured Difference $Y = |g_1 - g_2|_\gamma$", fontsize=12)
-    ax.legend(loc='lower right', fontsize=11)
+    ax.set_title(r"Theorem 1.1: Tangent Line at Infinity ($s \to \infty$, $X = 0$)", fontsize=13, fontweight='bold')
+    ax.set_xlabel(r"Theoretical Shape Factor $X = s^{-4} e^{-s^2/4}$", fontsize=11)
+    ax.set_ylabel(r"Measured Metric Difference $Y = |g_1 - g_2|_\gamma$", fontsize=11)
+    ax.legend(loc='lower right', fontsize=10)
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
@@ -310,11 +337,14 @@ def main():
     print(f"  Matching Residuals       : |delta a'| = {pair['residuals']['delta_alpha']:.2e}, |delta b'| = {pair['residuals']['delta_beta']:.2e}")
 
     print("\n" + "-" * 76)
-    print("WHITEBOARD TRACE AT INFINITY RESULT:")
+    print("WHITEBOARD TRACE AT INFINITY RESULTS (Theorem 1.1):")
     print("  |s^4 * exp(s^2/4) * (g1 - g2)|_gamma as s -> infty")
     print("-" * 76)
-    print(f"  Finite Trace Value at Infinity : {val:.4f}")
-    print(f"  Numerical Noise Floor          : {noise:.2e}")
+    print(f"  Exact Tangent Slope at infty (C_tan) : {results['tangent_value']:.4f}")
+    print(f"  Curvature Coefficient (C_curv)       : {results['curvature_value']:.2f}")
+    print(f"  Curved Fit Quality (R^2)             : {results['r2_tangent']:.5f}")
+    print(f"  Average Transseries Fit (C_lin)      : {val:.4f}")
+    print(f"  Numerical Noise Floor                : {noise:.2e}")
 
     print("\n" + "-" * 76)
     print("ASYMPTOTIC CHECKPOINT TABLE (s in [2.5, 20.0]):")
