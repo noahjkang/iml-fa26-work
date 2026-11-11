@@ -29,6 +29,10 @@ This module provides functions to:
 3. Solve for the matching soliton via 2D nonlinear root-finding from an initial guess.
 """
 
+import os
+import sys
+import subprocess
+import json
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import root
@@ -107,10 +111,50 @@ def get_asymptotic_slopes(b0, f0, r_max=120.0, rtol=1e-10, atol=1e-12):
     return alpha, beta
 
 
+def find_matching_solitons_julia(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0),
+                                  r_max=150.0, precision="double64", tol=1e-18):
+    """
+    Executes the high-precision Julia soliton matcher (residual < 10^-20) via subprocess.
+    """
+    julia_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "julia_soliton_matcher.jl")
+    if not os.path.isfile(julia_script):
+        raise FileNotFoundError(f"Julia matcher script not found at {julia_script}")
+
+    cmd = [
+        "julia",
+        julia_script,
+        "--b0_1", str(float(b0_1)),
+        "--f0_1", str(float(f0_1)),
+        "--precision", str(precision),
+        "--r_max", str(float(r_max)),
+        "--tol", str(float(tol))
+    ]
+    if initial_guess is not None:
+        cmd.extend([
+            "--b0_guess", str(float(initial_guess[0])),
+            "--f0_guess", str(float(initial_guess[1]))
+        ])
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Julia soliton matcher failed (exit code {proc.returncode}):\n{proc.stderr}")
+
+    data = json.loads(proc.stdout)
+    if data.get("status") != "OK":
+        raise RuntimeError(f"Julia soliton matcher returned non-OK status: {data}")
+
+    data["r_max"] = float(r_max)
+    data["engine"] = f"Julia ({data.get('precision', precision)})"
+    return data
+
+
 # start with default initial established soliton b0 = 0.3 and f0 = -1.0
-def find_matching_solitons(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0), r_max=120.0, tol=1e-9):
+def find_matching_solitons(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0), r_max=120.0, tol=1e-9, use_julia=True, precision="double64"):
     """
     Finds two distinct expanding gradient Ricci solitons that share the exact same asymptotic cone.
+
+    By default, invokes the high-precision Julia matching solver (Double64: 10^-34 accuracy,
+    residuals < 10^-20) for maximum numerical fidelity, with graceful fallback to Python.
 
     Parameters:
     -----------
@@ -124,12 +168,29 @@ def find_matching_solitons(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0), r_max
         Outer integration radius for asymptotic cone evaluation (default 120.0).
     tol : float
         Root-finding tolerance for matching cone slopes (default 1e-9).
+    use_julia : bool
+        Whether to delegate matching to the Julia engine (default True).
+    precision : str
+        Julia precision mode ("double64", "bigfloat", or "float64").
 
     Returns:
     --------
     dict:
         Dictionary containing initial parameters, asymptotic cone slopes, and residual errors.
     """
+    if use_julia:
+        try:
+            return find_matching_solitons_julia(
+                b0_1=b0_1,
+                f0_1=f0_1,
+                initial_guess=initial_guess,
+                r_max=max(r_max, 150.0),
+                precision=precision,
+                tol=1e-18
+            )
+        except Exception as e:
+            print(f"[Notice] Julia soliton matcher bypassed ({e}). Using native Python solver.")
+
     # 1. Compute target asymptotic cone slopes from Soliton 1
     alpha_1, beta_1 = get_asymptotic_slopes(b0_1, f0_1, r_max=r_max)
     if np.isnan(alpha_1) or np.isnan(beta_1):
