@@ -85,8 +85,8 @@ def _evaluate_single_soliton_pair(args):
 
             res = compute_finite_trace(
                 soliton_pair=pair,
-                s_min=1.0,
-                s_max=20.0,
+                s_min=2.5,
+                s_max=5.0,
                 n_points=120,
                 r_max=r_max
             )

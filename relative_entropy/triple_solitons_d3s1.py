@@ -49,9 +49,7 @@ This module:
 import os
 import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
-from scipy.interpolate import PchipInterpolator
 from scipy.optimize import root, root_scalar
 
 # Ensure local module directory is in sys.path
@@ -61,6 +59,10 @@ if _root not in sys.path:
     sys.path.insert(0, _root)
 
 from src.ricci_odes import ricci_soliton
+from relative_entropy.compute_finite_trace import (
+    compute_canonical_potential,
+    compute_pair_finite_trace
+)
 
 
 def get_initial_conditions_f2(b0, f0, eps=1e-4):
@@ -198,75 +200,6 @@ def find_triple_solitons(b0_A=0.3, f0_A=-1.0, r_max=120.0):
     }
 
 
-def compute_canonical_potential(sol):
-    """
-    Computes canonical Deruelle-Schulze potential f_DS and cone coordinate s(r).
-    """
-    f_p_end = sol.y[5][-1]
-    f_end = sol.y[4][-1]
-    f_inf = 0.5 * (f_p_end**2 + 2.0 * f_end)
-    f_DS = -sol.y[4] + f_inf
-
-    diff_f = np.diff(f_DS)
-    idx_inc = np.where(diff_f > 0)[0][0]
-    mask = (np.arange(len(f_DS)) >= idx_inc) & (f_DS > 0)
-
-    s_vals = 2.0 * np.sqrt(f_DS[mask])
-    r_vals = sol.t[mask]
-
-    _, unique_idx = np.unique(s_vals, return_index=True)
-    return PchipInterpolator(s_vals[unique_idx], r_vals[unique_idx]), f_inf
-
-
-def compute_pair_finite_trace(sol1, sol2, s_min=2.5, s_max=4.5, n_points=250):
-    """
-    Evaluates the finite trace constant C_trace at infinity between two matched solitons.
-    """
-    r1_of_s, _ = compute_canonical_potential(sol1)
-    r2_of_s, _ = compute_canonical_potential(sol2)
-
-    a1_of_r = PchipInterpolator(sol1.t, sol1.y[0])
-    a2_of_r = PchipInterpolator(sol2.t, sol2.y[0])
-    b1_of_r = PchipInterpolator(sol1.t, sol1.y[2])
-    b2_of_r = PchipInterpolator(sol2.t, sol2.y[2])
-
-    s_grid = np.linspace(s_min, s_max, n_points)
-    r1_v = r1_of_s(s_grid)
-    r2_v = r2_of_s(s_grid)
-
-    # In Deruelle convention, metric is rescaled by 2: a_DS^2 = 2 * a^2
-    a1_sq = 2.0 * a1_of_r(r1_v)**2
-    a2_sq = 2.0 * a2_of_r(r2_v)**2
-    b1_sq = 2.0 * b1_of_r(r1_v)**2
-    b2_sq = 2.0 * b2_of_r(r2_v)**2
-
-    diff_a2 = a1_sq - a2_sq
-    diff_b2 = b1_sq - b2_sq
-
-    # Tensor norm: |g1 - g2|_gamma
-    term = np.sqrt(diff_a2**2 / s_grid**4 + diff_b2**2 / s_grid**4)
-
-    # Tangent at infinity: Y(X) = C_trace * X + C_curv * X^2 where X = s^-4 * exp(-s^2/4)
-    X = (s_grid**(-4)) * np.exp(-s_grid**2 / 4.0)
-    A_mat = np.column_stack([X, X**2])
-    c_fit, _, _, _ = np.linalg.lstsq(A_mat, term, rcond=None)
-    C_trace = float(c_fit[0])
-    C_curv = float(c_fit[1])
-
-    y_pred = C_trace * X + C_curv * X**2
-    r2_score = float(1.0 - np.sum((term - y_pred)**2) / np.sum((term - np.mean(term))**2))
-
-    return {
-        "C_trace": C_trace,
-        "C_curv": C_curv,
-        "r2_score": r2_score,
-        "s_grid": s_grid,
-        "X": X,
-        "term": term,
-        "y_pred": y_pred
-    }
-
-
 def main():
     print("\n" + "=" * 76)
     print("TRIPLE OF EXPANDING GRADIENT RICCI SOLITONS IN D^2 x S^2 AND D^3 x S^1")
@@ -304,135 +237,27 @@ def main():
     print()
 
     # Step 3: Compute finite trace for all 3 pairs
-    print("=" * 76)
-    print("STEP 3: Deruelle-Schulze Finite Trace at Infinity for All 3 Pairs")
-    print("=" * 76)
-    vol_S = 8.0 * np.pi**2 * alpha * beta**2
-    sqrt_vol = np.sqrt(vol_S)
-    print(f"Link S = S^1 x S^2 Volume: Vol(S) = 8*pi^2*alpha*beta^2 = {vol_S:.6f}\n")
+    res_AB = compute_pair_finite_trace(solA, solB, s_min=2.5, s_max=5.0)
+    res_AC = compute_pair_finite_trace(solA, solC, s_min=2.5, s_max=5.0)
+    res_BC = compute_pair_finite_trace(solB, solC, s_min=2.5, s_max=5.0)
 
-    res_AB = compute_pair_finite_trace(solA, solB)
-    res_AC = compute_pair_finite_trace(solA, solC)
-    res_BC = compute_pair_finite_trace(solB, solC)
+    # Information on the three solitons: a0, b0, a'infty, b'infty, C
+    print("\n" + "=" * 80)
+    print("THREE SOLITONS ON THE SAME CONE")
+    print("=" * 80)
+    print(f"Shared Asymptotic Cone: a'_infty = {alpha:.8f}, b'_infty = {beta:.8f}\n")
+    print(f"{'Soliton':<12} | {'Topology':<12} | {'a0':<12} | {'b0':<12} | {'a_p_inf':<12} | {'b_p_inf':<12} | {'C':<12}")
+    print("-" * 88)
+    print(f"{'Soliton A':<12} | {'D^2 x S^2':<12} | {0.0:<12.8f} | {triple['soliton_A']['b0']:<12.8f} | {triple['soliton_A']['alpha']:<12.8f} | {triple['soliton_A']['beta']:<12.8f} | {'Reference':<12}")
+    print(f"{'Soliton B':<12} | {'D^2 x S^2':<12} | {0.0:<12.8f} | {triple['soliton_B']['b0']:<12.8f} | {triple['soliton_B']['alpha']:<12.8f} | {triple['soliton_B']['beta']:<12.8f} | {res_AB['C_trace']:<12.6f}")
+    print(f"{'Soliton C':<12} | {'D^3 x S^1':<12} | {triple['soliton_C']['a0']:<12.8f} | {0.0:<12.8f} | {triple['soliton_C']['alpha']:<12.8f} | {triple['soliton_C']['beta']:<12.8f} | {res_AC['C_trace']:<12.6f}")
+    print("-" * 88)
 
-    norm_L2_AB = res_AB["C_trace"] * sqrt_vol
-    norm_L2_AC = res_AC["C_trace"] * sqrt_vol
-    norm_L2_BC = res_BC["C_trace"] * sqrt_vol
-
-    # Output Verification Table
-    print(f"{'Pair Name':<32} | {'Topology Comparison':<22} | {'C_trace':<10} | {'Curvature':<11} | {'R^2 Score':<11} | {'||tr_inf||_L2':<12}")
-    print("-" * 110)
-    print(f"{'Pair AB (Lower vs Upper)':<32} | {'D^2 x S^2 vs D^2 x S^2':<22} | {res_AB['C_trace']:<10.6f} | {res_AB['C_curv']:<11.2f} | {res_AB['r2_score']:<11.8f} | {norm_L2_AB:<12.6f}")
-    print(f"{'Pair AC (Lower vs S1-core)':<32} | {'D^2 x S^2 vs D^3 x S^1':<22} | {res_AC['C_trace']:<10.6f} | {res_AC['C_curv']:<11.2f} | {res_AC['r2_score']:<11.8f} | {norm_L2_AC:<12.6f}")
-    print(f"{'Pair BC (Upper vs S1-core)':<32} | {'D^2 x S^2 vs D^3 x S^1':<22} | {res_BC['C_trace']:<10.6f} | {res_BC['C_curv']:<11.2f} | {res_BC['r2_score']:<11.8f} | {norm_L2_BC:<12.6f}")
-    print("-" * 110)
-
-    # Verify Triangle Inequality
-    c_ab = res_AB["C_trace"]
-    c_ac = res_AC["C_trace"]
-    c_bc = res_BC["C_trace"]
-    print("\nTriangle Inequality Verification:")
-    print(f"  |C_BC - C_AB| = {abs(c_bc - c_ab):.6f} <= C_AC = {c_ac:.6f} <= C_BC + C_AB = {c_bc + c_ab:.6f} -> {'SATISFIED' if abs(c_bc - c_ab) <= c_ac <= c_bc + c_ab else 'VIOLATED'}")
-    print(f"  Linear difference: (C_AB + C_AC) - C_BC = {(c_ab + c_ac) - c_bc:.6f} (almost colinear difference tensors!)\n")
-
-    # Step 4: Multi-Panel Visualization
-    print("=" * 76)
-    print("STEP 4: Generating Visualization Figure")
-    print("=" * 76)
-    fig, axes = plt.subplots(2, 2, figsize=(14, 11))
-
-    # Panel 1: Profile trajectories near origin and convergence to cone
-    ax1 = axes[0, 0]
-    r_plot = np.linspace(0.01, 8.0, 300)
-    ax1.plot(solA.t[solA.t <= 8.0], solA.y[0][solA.t <= 8.0], 'b-', lw=2.2, label=r"$a_A(r)$ ($D^2 \times S^2$ Lower, $a(0)=0$)")
-    ax1.plot(solA.t[solA.t <= 8.0], solA.y[2][solA.t <= 8.0], 'b--', lw=2.2, label=r"$b_A(r)$ ($D^2 \times S^2$ Lower, $b(0)=0.3$)")
-    ax1.plot(solB.t[solB.t <= 8.0], solB.y[0][solB.t <= 8.0], 'g-', lw=2.2, label=r"$a_B(r)$ ($D^2 \times S^2$ Upper, $a(0)=0$)")
-    ax1.plot(solB.t[solB.t <= 8.0], solB.y[2][solB.t <= 8.0], 'g--', lw=2.2, label=r"$b_B(r)$ ($D^2 \times S^2$ Upper, $b(0)=1.74$)")
-    ax1.plot(solC.t[solC.t <= 8.0], solC.y[0][solC.t <= 8.0], 'r-', lw=2.2, label=r"$a_C(r)$ ($D^3 \times S^1$, $a(0)=0.49$)")
-    ax1.plot(solC.t[solC.t <= 8.0], solC.y[2][solC.t <= 8.0], 'r--', lw=2.2, label=r"$b_C(r)$ ($D^3 \times S^1$, $b(0)=0$)")
-    ax1.plot(r_plot, alpha * r_plot, 'k:', lw=1.5, alpha=0.7, label=r"Cone Limit $\alpha^* r$")
-    ax1.plot(r_plot, beta * r_plot, 'k-.', lw=1.5, alpha=0.7, label=r"Cone Limit $\beta^* r$")
-    ax1.set_xlabel(r"Radial Coordinate $r$", fontsize=11)
-    ax1.set_ylabel(r"Metric Warping Functions $a(r), b(r)$", fontsize=11)
-    ax1.set_title(r"(a) Metric Profiles & Origin Topologies ($r \in [0, 8]$)", fontsize=12, fontweight='bold')
-    ax1.legend(loc='upper left', fontsize=8.5, framealpha=0.9)
-    ax1.grid(True, alpha=0.3)
-
-    # Panel 2: Canonical cone coordinate normalized ratios
-    ax2 = axes[0, 1]
-    rA_of_s, _ = compute_canonical_potential(solA)
-    rB_of_s, _ = compute_canonical_potential(solB)
-    rC_of_s, _ = compute_canonical_potential(solC)
-    aA_r = PchipInterpolator(solA.t, solA.y[0])
-    bA_r = PchipInterpolator(solA.t, solA.y[2])
-    aB_r = PchipInterpolator(solB.t, solB.y[0])
-    bB_r = PchipInterpolator(solB.t, solB.y[2])
-    aC_r = PchipInterpolator(solC.t, solC.y[0])
-    bC_r = PchipInterpolator(solC.t, solC.y[2])
-
-    s_eval = np.linspace(1.2, 12.0, 300)
-    ax2.plot(s_eval, np.sqrt(2.0) * aA_r(rA_of_s(s_eval)) / s_eval, 'b-', lw=2, label=r"$S_A$: $a(s)/s \to \alpha^*$")
-    ax2.plot(s_eval, np.sqrt(2.0) * bA_r(rA_of_s(s_eval)) / s_eval, 'b--', lw=2, label=r"$S_A$: $b(s)/s \to \beta^*$")
-    ax2.plot(s_eval, np.sqrt(2.0) * aB_r(rB_of_s(s_eval)) / s_eval, 'g-', lw=2, label=r"$S_B$: $a(s)/s \to \alpha^*$")
-    ax2.plot(s_eval, np.sqrt(2.0) * bB_r(rB_of_s(s_eval)) / s_eval, 'g--', lw=2, label=r"$S_B$: $b(s)/s \to \beta^*$")
-    ax2.plot(s_eval, np.sqrt(2.0) * aC_r(rC_of_s(s_eval)) / s_eval, 'r-', lw=2, label=r"$S_C$: $a(s)/s \to \alpha^*$")
-    ax2.plot(s_eval, np.sqrt(2.0) * bC_r(rC_of_s(s_eval)) / s_eval, 'r--', lw=2, label=r"$S_C$: $b(s)/s \to \beta^*$")
-    ax2.axhline(alpha, color='black', linestyle=':', lw=1.5, label=f"Cone $\\alpha^* = {alpha:.4f}$")
-    ax2.axhline(beta, color='black', linestyle='-.', lw=1.5, label=f"Cone $\\beta^* = {beta:.4f}$")
-    ax2.set_xlabel(r"Canonical Cone Coordinate $s = 2\sqrt{f_{DS}}$", fontsize=11)
-    ax2.set_ylabel(r"Normalized Slopes on Link $S$", fontsize=11)
-    ax2.set_title(r"(b) Convergence to Identical Cone $(\alpha^*, \beta^*)$", fontsize=12, fontweight='bold')
-    ax2.legend(loc='center right', fontsize=8.5, framealpha=0.9)
-    ax2.grid(True, alpha=0.3)
-
-    # Panel 3: Tangent line at infinity Y(X) vs X
-    ax3 = axes[1, 0]
-    X_line = np.linspace(0.0, max(res_AB["X"].max(), res_BC["X"].max()), 200)
-    ax3.plot(res_AB["X"], res_AB["term"], 'bo', markersize=3.5, alpha=0.6, label="Pair AB data")
-    ax3.plot(X_line, res_AB["C_trace"] * X_line + res_AB["C_curv"] * X_line**2, 'b-', lw=2,
-             label=f"Pair AB: $C_{{AB}} = {res_AB['C_trace']:.4f}$")
-    ax3.plot(res_BC["X"], res_BC["term"], 'g^', markersize=3.5, alpha=0.6, label="Pair BC data")
-    ax3.plot(X_line, res_BC["C_trace"] * X_line + res_BC["C_curv"] * X_line**2, 'g-', lw=2,
-             label=f"Pair BC: $C_{{BC}} = {res_BC['C_trace']:.4f}$")
-    ax3.plot(res_AC["X"], res_AC["term"], 'rs', markersize=3.5, alpha=0.6, label="Pair AC data")
-    ax3.plot(X_line, res_AC["C_trace"] * X_line + res_AC["C_curv"] * X_line**2, 'r-', lw=2,
-             label=f"Pair AC: $C_{{AC}} = {res_AC['C_trace']:.4f}$")
-    ax3.set_xlabel(r"$X = s^{-4} e^{-s^2/4}$", fontsize=11)
-    ax3.set_ylabel(r"Difference Tensor Norm $|g_1 - g_2|_\gamma$", fontsize=11)
-    ax3.set_title(r"(c) Deruelle-Schulze Tangents at Infinity ($s \to \infty, X \to 0$)", fontsize=12, fontweight='bold')
-    ax3.legend(loc='upper left', fontsize=9, framealpha=0.9)
-    ax3.grid(True, alpha=0.3)
-
-    # Panel 4: Semilogarithmic exponential decay of difference tensors
-    ax4 = axes[1, 1]
-    s_full = np.linspace(1.5, 7.0, 300)
-    def get_term_full(r1_s, r2_s, a1_r, b1_r, a2_r, b2_r):
-        r1 = r1_s(s_full)
-        r2 = r2_s(s_full)
-        d_a2 = 2.0 * a1_r(r1)**2 - 2.0 * a2_r(r2)**2
-        d_b2 = 2.0 * b1_r(r1)**2 - 2.0 * b2_r(r2)**2
-        return np.sqrt(d_a2**2 / s_full**4 + d_b2**2 / s_full**4)
-
-    term_AB = get_term_full(rA_of_s, rB_of_s, aA_r, bA_r, aB_r, bB_r)
-    term_AC = get_term_full(rA_of_s, rC_of_s, aA_r, bA_r, aC_r, bC_r)
-    term_BC = get_term_full(rB_of_s, rC_of_s, aB_r, bB_r, aC_r, bC_r)
-
-    ax4.semilogy(s_full, term_AB, 'b-', lw=2.2, label=f"Pair AB ($C_{{AB}} = {c_ab:.2f}$)")
-    ax4.semilogy(s_full, term_BC, 'g-', lw=2.2, label=f"Pair BC ($C_{{BC}} = {c_bc:.2f}$)")
-    ax4.semilogy(s_full, term_AC, 'r-', lw=2.2, label=f"Pair AC ($C_{{AC}} = {c_ac:.2f}$)")
-    ax4.semilogy(s_full, s_full**(-4) * np.exp(-s_full**2 / 4.0), 'k--', lw=1.5, alpha=0.7, label=r"Gaussian decay $s^{-4} e^{-s^2/4}$")
-    ax4.set_xlabel(r"Canonical Coordinate $s$", fontsize=11)
-    ax4.set_ylabel(r"$|g_1 - g_2|_\gamma(s)$ (Log Scale)", fontsize=11)
-    ax4.set_title(r"(d) Semilogarithmic Decay of Difference Tensors", fontsize=12, fontweight='bold')
-    ax4.legend(loc='lower left', fontsize=9, framealpha=0.9)
-    ax4.grid(True, which='both', alpha=0.3)
-
-    plt.tight_layout()
-    out_path = os.path.join(_dir, "triple_solitons_d3s1.png")
-    plt.savefig(out_path, dpi=300)
-    plt.close()
-    print(f"Figure saved successfully to: {out_path}")
-    print("=" * 76 + "\n")
+    print("\nPairwise Trace Constants at Infinity:")
+    print(f"  C_AB (Soliton A vs Soliton B) : {res_AB['C_trace']:.6f}  (R^2 = {res_AB['r2_score']:.6f})")
+    print(f"  C_AC (Soliton A vs Soliton C) : {res_AC['C_trace']:.6f}  (R^2 = {res_AC['r2_score']:.6f})")
+    print(f"  C_BC (Soliton B vs Soliton C) : {res_BC['C_trace']:.6f}  (R^2 = {res_BC['r2_score']:.6f})")
+    print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":
