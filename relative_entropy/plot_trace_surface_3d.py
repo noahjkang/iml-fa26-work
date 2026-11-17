@@ -376,8 +376,11 @@ def plot_trace_surface_3d(data, save_path=FIGURE_FILENAME, tight_bounds=False):
         print(f"Saved 3D manifold visualization to: {save_path}")
 
     # Launch GUI
-    print("Launching Matplotlib 3D GUI window (close window to finish)...")
-    plt.show()
+    if '--no-gui' in sys.argv:
+        print("Skipping GUI window display (--no-gui flag detected).")
+    else:
+        print("Launching Matplotlib 3D GUI window (close window to finish)...")
+        plt.show()
 
 
 def main():
@@ -405,6 +408,11 @@ def main():
         "--tight",
         action="store_true",
         help="Use tight axis limits around data to fill frame like the original plot."
+    )
+    parser.add_argument(
+        "--no-gui",
+        action="store_true",
+        help="Skip GUI window display and save plot directly."
     )
     args = parser.parse_args()
 
