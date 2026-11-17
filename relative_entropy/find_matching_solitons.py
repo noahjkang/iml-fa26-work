@@ -149,7 +149,7 @@ def find_matching_solitons_julia(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0),
 
 
 # start with default initial established soliton b0 = 0.3 and f0 = -1.0
-def find_matching_solitons(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0), r_max=120.0, tol=1e-9, use_julia=True, precision="double64"):
+def find_matching_solitons(b0_1=0.3, f0_1=-1.0, initial_guess=(1.8, -2.0), r_max=120.0, tol=1e-9, use_julia=False, precision="double64"):
     """
     Finds two distinct expanding gradient Ricci solitons that share the exact same asymptotic cone.
 
