@@ -70,18 +70,3 @@ iml-fa26-work/
     ├── julia_soliton_matcher.jl       # Julia solver for high-precision 2D root finding
     └── julia_trace_engine.jl          # Julia solver for variational trace cross-verification
 ```
-
-## Goal 4: Relative Entropy & Trace at Infinity Workflow
-
-Under Deruelle & Schulze (2023, CPAM, Theorem 1.1), two expanding gradient Ricci solitons sharing the same asymptotic cone satisfy:
-$$\lim_{s \to \infty} s^4 e^{s^2/4} \|g_1 - g_2\|_\gamma = C_{\text{trace}} < \infty$$
-
-### Key Modules:
-- **High-Precision Engine (`compute_finite_trace.py`)**: 100% pure Python implementation using `mpmath` (45 decimal places) and Gauss-Legendre Order 8 collocation to evaluate trajectories out past $s = 10.0 \sim 12.0$.
-- **Reference Dataset (`trace_data_s36.json`)**: Precomputed, certified high-precision $(s, X, Y)$ trajectory checkpoints providing instant calibration without re-integrating ODEs.
-- **Concavity Verification (`plot_second_derivative.py`)**: Evaluates the second derivative $\frac{d^2Y}{dX^2}$ versus theoretical shape factor $X = s^{-4} e^{-s^2/4}$, showing that $\left.\frac{dY}{dX}\right|_{X=0} = C_{\text{trace}} > 0$ and $\frac{d^2Y}{dX^2} < 0$ everywhere, geometrically guaranteeing that $0 < Y(X) < C_{\text{trace}} X$.
-- **Geometric Triples (`triple_solitons_d3s1.py`)**: Identifies expanding solitons sharing the exact same cone across distinct complete 4-manifold topologies: $D^2 \times S^2$ (lower branch $S_A$ & upper branch $S_B$) and $D^3 \times S^1$ (circle core $S_C$).
-- **3D Manifold Visualizations**:
-  - `plot_trace_surface_3d.py`: 3D surface of $C_{AB}(a'_\infty, b'_\infty)$ between pairs on $D^2 \times S^2$.
-  - `plot_trace_surface_d3s1_3d.py`: 3D surface of cross-topological trace $C_{AC}(a'_\infty, b'_\infty)$ comparing $D^2 \times S^2$ and $D^3 \times S^1$.
-  - `plot_triple_trace_surfaces_3d.py`: Simultaneous 3D comparison of all 3 pairwise traces ($C_{AB}, C_{AC}, C_{BC}$) over the asymptotic cone plane.
